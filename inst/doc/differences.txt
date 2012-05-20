@@ -1,0 +1,304 @@
+This file contains a description of the differences between
+the data frame code in R 2-14.2 and the corresponding code
+in the dataframe package.
+
+Old code : refers to src/library/base/R/dataframe.R from R-2.14.2
+New code : refers to R/dataframe.R in this package version 2.3
+
+Caveat - in some cases I indicate that certain steps might make
+copies of the data.  I no longer remember exactly which steps make
+copies.  See 'memory.txt' for benchmarks for the total number
+of copies made by various operations
+
+Tim Hesterberg <rocket@google.com>
+15 March 2012
+
+
+--------------------------------------------------
+as.data.frame.vector
+data.frame
+[.data.frame
+
+One trick used a number of times in the new code, to use the
+"attributes<-" function to create and return a data frame.
+
+Here's an example from as.data.frame.vector.
+The old code creates a data frame in a number of steps:
+* create a list
+* add names to the list
+* add a row.names attribute
+* add a class
+* returns the object
+The new code does this in one step, by calling "attributes<-".
+
+For background, in R
+  attributes(x) <- value
+really calls the "attributes<-" function then assigns the result:
+  x <- "attributes<-"(x, value)
+
+
+Old code:
+    value <- list(x)
+    if(!optional) names(value) <- nm
+    attr(value, "row.names") <- row.names
+    class(value) <- "data.frame"
+    value
+
+New code:
+    "attributes<-"(list(x),
+                   c(if(!optional) list(names = nm),
+                     list(row.names = row.names, class = "data.frame")))
+
+The old code makes 3 copies of the data, the new code 1 copy.
+
+
+
+--------------------------------------------------
+[<-.data.frame
+[[<-.data.frame
+$<-.data.frame
+
+Another common used trick in the new code is to only set the names of
+an object to NULL if they aren't already NULL, to avoid copying the object.
+
+Old code:
+        if(is.atomic(value)) names(value) <- NULL
+
+New code:
+        if(is.atomic(value) && !is.null(names(value)))
+            names(value) <- NULL
+
+
+--------------------------------------------------
+as.data.frame.list
+
+'x' is a list containing the data
+'cn' = names(x)
+
+To call 'data.frame' passing the elements of 'x' together with the
+names, the old code does:
+
+    x <- eval(as.call(c(expression(data.frame), x, check.names = !optional,
+                        stringsAsFactors = stringsAsFactors)))
+
+That may make copies:
+* converting x to an expression
+* in c()
+* in as.call()
+* in eval()
+
+The new code uses the names (in 'cn') instead:
+
+    x <- eval(as.call(c(expression(data.frame), lapply(cn, as.name),
+                        check.names = !optional,
+                        stringsAsFactors = stringsAsFactors)),
+              envir = x)
+
+The old code ends up making 8 copies of the data, the new code 3.
+(Some of those copies are made when calling data.frame.)
+
+
+--------------------------------------------------
+In data.frame
+
+The old code has:
+    x <- list(...)
+    n <- length(x)
+which makes a copy of all inputs, where the new code has:
+    n <- (function(...)(nargs()))(...)
+
+Incidentally, S+ has an "nDotArgs" function for this computation;
+this is available in the 'splus2R' package.
+
+To be fair, the old code also uses 'x' later; the new code avoids that.
+
+Old code:
+    vnames <- names(x)
+New code:
+    vnames <- names(match.call(expand.dots = FALSE)$...)
+
+Old code:
+    for(i in seq_len(n)) {
+       computations using x[[i]]
+New code:
+    for(i in seq_len(n)) {
+        x0 <- eval(parse(text = paste("..", i, sep=""))[[1]]) # copy of ..1 etc.
+       computations using x0
+
+
+Backing up a bit, before the loops
+Old:
+    vnames <- as.list(vnames)
+    vlist <- vnames
+New:
+    vnames <- as.list(vnames)
+    vlistNames <- paste("vlist", seq(along=vnames), sep="")
+
+In the old code 'vlist' is a list that will later contain another copy
+of the data.  We avoid creating that in the new code, instead creating
+smaller objects 'vlist1', 'vlist2' ..., and using 'assign' and 'get'.
+These smaller objects are typically created without requiring extra
+memory allocations.
+
+Old code, at end of one loop
+	vlist[[i]] <- xi
+and beginning of another:
+	xi <- vlist[[i]]
+and after some manipulations:
+                vlist[[i]] <- xi
+
+New code, at end of one loop
+	assign(vlistNames[i], xi)
+and beginning of another:
+	xi <- get(vlistNames[i])
+and after some manipulations:
+                assign(vlistNames[i], xi)
+
+
+In fact, 'vlist' is a two-level list, a list whose components are
+themselves lists.  To turn that into a single-level list, the
+old code use unlist() and the new code uses c(vlist1, vlist2, ...):
+
+Old code:
+    value <- unlist(vlist, recursive=FALSE, use.names=FALSE)
+New code
+    value <- eval(parse(text = paste("c(",
+                          paste(vlistNames, collapse = ","),
+                          ")")))
+--------------------------------------------------
+[.data.frame
+
+There's a minor variation of the "attributes<-" trick.
+
+Old code:
+        if(anyDuplicated(cols)) names(y) <- make.unique(cols)
+	return(structure(y, class = oldClass(x),
+                         row.names = .row_names_info(x, 0L)))
+
+Changing names(y) and structure() can both make extra copies of the data.
+
+New code:
+        return("attributes<-"(y, list(class = oldClass(x),
+                                      names = if(anyDuplicated(cols))
+                                      make.unique(cols) else names(y),
+                                      row.names = .row_names_info(x, 0L))))
+
+
+
+Row names are a bugaboo in the data frame code; checking
+for duplicate row names is an O(n log(n)) operation, which becomes
+very expensive for large data.  The new code tries to determine
+when it does not need to check for duplicates:
+
+New code:
+    noDuplicateRowNames <- (is.logical(i) || length(i) < 2 ||
+                            (is.numeric(i) && min(i, 0, na.rm = TRUE) < 0L))
+
+There is an additional check that should be done there, which is to
+check that there are no missing values and that the row names are sorted.
+Unfortunately, R does not have a fast way to check for the existence
+of any missing values.  S+ has anyMissing (anyNA might be a better name
+for this in R).
+
+Old code:
+	if((ina <- any(is.na(rows))) | (dup <- anyDuplicated(rows))) {
+	    ## both will coerce integer 'rows' to character:
+	    if (!dup && is.character(rows)) dup <- "NA" %in% rows
+	    if(ina)
+		rows[is.na(rows)] <- "NA"
+	    if(dup)
+		rows <- make.unique(as.character(rows))
+	}
+
+New code:
+        if (any(is.na(rows)))
+          rows[is.na(rows)] <- "NA"
+        if (!noDuplicateRowNames && anyDuplicated(rows))
+          rows <- make.unique(as.character(rows))
+
+Incidentally, the old code has a logical error; should use || instead
+of | inside if().
+
+--------------------------------------------------
+[<-.data.frame
+[[<-.data.frame
+$<-.data.frame
+
+Old code:
+    ## delete class: S3 idiom to avoid any special methods for [[, etc
+    class(x) <- NULL
+
+That is an expensive operation, making an extra copy of the data.
+The new code defers that, does it later only if needed.
+In some cases it is not needed.
+In other cases it can be avoided other ways:
+
+        # Tricky way to do x[[i]] <- value, avoiding methods
+        x <- "[[<-"("oldClass<-"(x, NULL), i, value)
+
+
+--------------------------------------------------
+[<-.data.frame
+
+When new columns are added, the old code adds attributes to x in three
+steps; most attributes, the names, and the row names.  It is better to
+collect them and add them all at once.
+
+Old code:
+        a <- attributes(x); a["names"] <- NULL
+        x <- c(x, vector("list", length(new.cols)))
+        attributes(x) <- a
+        names(x) <- c(nm, new.cols)
+        attr(x, "row.names") <- rows
+
+New code:
+        a <- attributes(x)
+        x <- c(x, vector("list", length(new.cols)))
+        aa <- a[setdiff(names(a), "row.names")]
+        aa$row.names <- rows
+        aa$names <- c(nm, new.cols)
+        aa$class <- NULL
+        attributes(x) <- aa
+
+
+--------------------------------------------------
+[[<-.data.frame
+
+There is one intentional behavior difference; if a data frame
+has two columns, then
+x[[4]] <- value results in a stop in the new code
+and an illegal data frame in the old code.
+
+Old:
+> x <- data.frame(a=1:2,b=3:4)
+> x[[4]] <- 5:6
+> x
+  a b      V4
+1 1 3 NULL  5
+2 2 4 <NA>  6
+Warning message:
+In format.data.frame(x, digits = digits, na.encode = FALSE) :
+  corrupt data frame: columns will be truncated or padded with NAs
+
+New:
+Error in `[[<-.data.frame`(`*tmp*`, 4, value = 5:6) :
+  attempting to add a nonexistent column, would leave empty columns
+
+
+--------------------------------------------------
+Math.data.frame
+
+There is on intentional behavior difference; the new code
+skips non-numerical variables, instead of failing.
+It does give a warning, because of backward compatibility.
+That warning could be removed, now or for a future version.
+
+> round(data.frame(ID = c("a","b"), x = c(1/3, 2/7)), 2)
+  ID    x
+1  a 0.33
+2  b 0.29
+Warning message:
+In Math.data.frame(list(ID = 1:2, x = c(0.333333333333333, 0.285714285714286 :
+  skipping non-numeric variable in data frame: ID
+
+--------------------------------------------------

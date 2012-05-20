@@ -1,0 +1,37 @@
+Changes between versions of the dataframe package.
+Most recent changes are first.
+
+---- 2.5	5/20/2012
+Merge in changes to R data frame code as of R 2.15.0 (use paste0()).
+Add help files and edit NAMESPACE so R CMD check works.
+
+---- 2.4	3/28/2012
+Fix as.data.frame.list for case that list has no names.
+(Discovered by Stephen Kaluzny.)
+
+---- 2.3	3/13/2012
+Merge in changes to R data frame code as of R 2.14.2.
+
+Add a description of the differences in the code.
+
+---- 2.2	10/2/2009
+Add new version of Math.data.frame - skips non-numerical variables
+instead of failing.  This is useful for e.g. print(round(x)).
+
+---- 2.1	10/1/2009
+Add new version of as.data.frame.list
+
+---- 2.0	9/28/2009
+Modify core routines to avoid making copies of data, and avoid checking
+for duplicate row names if possible.
+
+x[[k]] <- value gives an error if x has fewer than k-1 columns, rather
+than producing an illegal data frame.
+
+Add doc/memory.R and doc/speed.R showing memory and speed differences.
+
+---- 1.1	9/16/2009
+Add tests/*.t and tests/runTests.R
+
+---- 1.0	9/13/2009
+Original version, copy data frame code from R

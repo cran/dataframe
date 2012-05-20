@@ -1,0 +1,41 @@
+
+R version 2.9.2 (2009-08-24)
+Copyright (C) 2009 The R Foundation for Statistical Computing
+ISBN 3-900051-07-0
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # File dataframe/tests/runTests.R
+> # Part of the dataframe package.
+> # Copyright 2009 Google, author Tim Hesterberg
+> # Distributed under GPL 2 or later
+>
+> # Run all .t tests in tests/
+>
+> require("splus2R")
+Loading required package: splus2R
+> library(dataframe, warn.conflicts = FALSE)
+>
+> files <- list.files(pattern = "\\.t$")
+>
+> for(file in files)
++   do.test(file)
+------- Test file: Math.t ---------
+------- Test file: as.data.frame.list.t ---------
+------- Test file: as.data.frame.t ---------
+------- Test file: dSubGets.t ---------
+------- Test file: data.frame.t ---------
+------- Test file: dollarGets.t ---------
+------- Test file: sub.t ---------
+------- Test file: subGets.t ---------
+>

@@ -1,0 +1,64 @@
+# Copyright 2011 Google Inc.
+# Distributed under GPL 2 or later
+#
+# Author: rocket@google.com (Tim Hesterberg)
+
+export("as.data.frame.list",
+       "as.data.frame.vector",
+       "data.frame",
+       "[.data.frame",
+       "[<-.data.frame",
+       "[[<-.data.frame",
+       "$<-.data.frame",
+       "Math.data.frame",
+       "as.data.frame.chron",
+       "as.data.frame.dates",
+       "as.data.frame.times",
+       "as.data.frame.Date",
+       "as.data.frame.POSIXct",
+       "as.data.frame.difftime",
+       "as.data.frame.numeric_version")
+
+S3method("row.names", "data.frame")
+S3method("row.names", "default")
+S3method("row.names<-", "data.frame")
+S3method("row.names<-", "default")
+S3method("is.na", "data.frame")
+# S3method("is", "data.frame")
+S3method("print", "AsIs")
+S3method("t", "data.frame")
+S3method("dim", "data.frame")
+S3method("dimnames", "data.frame")
+S3method("dimnames<-", "data.frame")
+S3method("as.data.frame", "default")
+S3method("as.data.frame", "data.frame")
+S3method("as.data.frame", "list")
+S3method("as.data.frame", "vector")
+S3method("as.data.frame", "ts")
+S3method("as.data.frame", "raw")
+S3method("as.data.frame", "character")
+S3method("as.data.frame", "logical")
+S3method("as.data.frame", "matrix")
+S3method("as.data.frame", "model.matrix")
+S3method("as.data.frame", "array")
+S3method("[", "AsIs")
+S3method("as.data.frame", "AsIs")
+S3method("[", "data.frame")
+S3method("[[", "data.frame")
+S3method("[<-", "data.frame")
+S3method("[[<-", "data.frame")
+S3method("$<-", "data.frame")
+S3method("cbind", "data.frame")
+S3method("rbind", "data.frame")
+S3method("print", "data.frame")
+S3method("as.matrix", "data.frame")
+S3method("Math", "data.frame")
+S3method("Ops", "data.frame")
+S3method("Summary", "data.frame")
+S3method("as.data.frame", "chron")
+S3method("as.data.frame", "dates")
+S3method("as.data.frame", "times")
+S3method("as.data.frame", "Date")
+S3method("as.data.frame", "POSIXct")
+S3method("as.data.frame", "difftime")
+S3method("as.data.frame", "numeric_version")
